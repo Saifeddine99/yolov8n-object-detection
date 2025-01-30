@@ -38,10 +38,10 @@ st.markdown('#') # inserts empty space
 
 DEMO_PIC = "default_image.jpeg"
 
-def main():
+if "detection_button" not in st.session_state:
+    st.session_state.detection_button = False
 
-    if "detection_button" not in st.session_state:
-        st.session_state.detection_button = False
+def main():
 
     #################### Parameters to setup ########################################
     cocoClassesLst = ["person","bicycle","car","motorcycle","airplane","bus","train","truck","boat","traffic light","fire hydrant","stop sign","parking meter","bench","bird","cat", \
@@ -51,7 +51,7 @@ def main():
     "refrigerator","book","clock","vase","scissors","teddy bear","hair drier","toothbrush", "All"]
 
     classes_index = st.sidebar.multiselect("Select Classes", range(
-        len(cocoClassesLst)), format_func = lambda x: cocoClassesLst[x], default = 80) #classes
+        len(cocoClassesLst)), format_func = lambda x: cocoClassesLst[x], default = 80)
     
     isAllinList = 80 in classes_index
     if isAllinList == True:
