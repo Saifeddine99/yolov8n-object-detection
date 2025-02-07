@@ -4,20 +4,13 @@ import streamlit as st
 
 st.set_page_config(page_title = "Yolo V8 Multiple Object Detection on Pretrained Model", page_icon="🤖")
 
-st.markdown(
-    """
-    <style>
-    [data-testid="stSidebar"][aria-expanded="true"] > div:first-child {
-        width: 340px;
-    }
-    [data-testid="stSidebar"][aria-expanded="false"] > div:first-child {
-        width: 340px;
-        margin-left: -340px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+#################### Title #####################################################
+st.markdown("<h3 style='text-align: center; color: red; font-family: font of choice, fallback font no1, sans-serif;'>Yolo V8</h3>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center; color: black; font-family: font of choice, fallback font no1, sans-serif;'>Multiple Object Detection on Pretrained Model</h2>", unsafe_allow_html=True)
+
+st.markdown('#') # inserts empty space
+#################### /Title #####################################################
+
 
 # Load a COCO-pretrained YOLOv8n model
 model = YOLO("yolov8n.pt")
@@ -29,17 +22,11 @@ def activation_callback():
 def deactivation_callback():
     st.session_state.detection_button = False
 
-#################### Title #####################################################
-
-st.markdown("<h3 style='text-align: center; color: red; font-family: font of choice, fallback font no1, sans-serif;'>Yolo V8</h3>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center; color: black; font-family: font of choice, fallback font no1, sans-serif;'>Multiple Object Detection on Pretrained Model</h2>", unsafe_allow_html=True)
-
-st.markdown('#') # inserts empty space
-
 DEMO_PIC = "default_image.jpeg"
 
 if "detection_button" not in st.session_state:
     st.session_state.detection_button = False
+
 
 #################### Parameters to setup ########################################
 cocoClassesLst = ["person","bicycle","car","motorcycle","airplane","bus","train","truck","boat","traffic light","fire hydrant","stop sign","parking meter","bench","bird","cat", \
@@ -61,6 +48,8 @@ MAX_BOXES_TO_DRAW = st.sidebar.number_input('Maximum Boxes To Draw', value = 5, 
 MIN_SCORE_THRES = st.sidebar.slider('Min Confidence Score Threshold', min_value = 0.0, max_value = 1.0, value = 0.25)
 #################### /Parameters to setup ########################################
 
+
+#################### Image Upload ########################################
 uploaded_image = st.sidebar.file_uploader(
     "Upload Image", type = ['png', 'jpeg', 'jpg', 'bmp', 'dng', 'mpo', 'tif', 'tiff', 'webp', 'pfm', 'HEIC'], on_change=deactivation_callback)
 
@@ -74,8 +63,10 @@ else:
     st.sidebar.info("Here is a Demo Picture!")
     st.sidebar.image(DEMO_PIC)
     picture = DEMO_PIC
+#################### /Image Upload ########################################
 
 
+#################### Object Detection ########################################
 if st.button('Detect Objects', on_click=activation_callback) or st.session_state.detection_button:
 
     if classes_index:
@@ -126,3 +117,4 @@ if st.button('Detect Objects', on_click=activation_callback) or st.session_state
 
         else:
             st.error("Sorry, No object detected!")
+#################### /Object Detection ########################################
