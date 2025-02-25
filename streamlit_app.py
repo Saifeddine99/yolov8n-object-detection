@@ -1,7 +1,5 @@
 import io
-from ultralytics import YOLO
 import streamlit as st
-import numpy as np
 from PIL import Image
 from pillow_heif import register_heif_opener
 
@@ -26,9 +24,7 @@ COCO_CLASSES = [  # List of all Classes
 ]
 
 
-# Initialize session state for model loading (only once)
-if "model" not in st.session_state:
-    st.session_state.model = YOLO("yolov8n.pt")
+
 
 # Initialize session state for detection status
 if "detection_button" not in st.session_state:
@@ -89,7 +85,7 @@ with st.sidebar:
                     st.image(picture)
                 
             except Exception as e:
-                st.error(f"An error occurred {file_extension}: {e}")
+                st.error(f"An error occurred {file_extension}: {e}") # Just for debugging
 
         else:
             st.info("Default Image:")
@@ -102,28 +98,10 @@ if picture:
     #################### Object Detection ########################################
     if st.button('Detect Objects', on_click=activation_callback) or st.session_state.detection_button:
 
-        isAllinList = 80 in classes_index
-        if isAllinList is True:
-            classes_index = classes_index.clear()
-        print("Selected Classes: ", classes_index)
-
         with st.spinner(text = 'Inferencing, Please Wait.....'):
-            if classes_index:
-                results = st.session_state.model.predict(source = picture,
-                                        conf = MIN_SCORE_THRES,
-                                        classes = classes_index,
-                                        max_det = MAX_BOXES_TO_DRAW
-                                        )
-        
-            else:
-                results = st.session_state.model.predict(source = picture,
-                                        conf = MIN_SCORE_THRES,
-                                        max_det = MAX_BOXES_TO_DRAW
-                                        )
-
-        # Extracting result:
-        result = results[0]
-
+            from prediction import predict
+            result = predict(picture, classes_index, MIN_SCORE_THRES, MAX_BOXES_TO_DRAW)
+            
         with st.spinner(text = 'Image Processing:'):
 
             # Converting result to DataFrame:
