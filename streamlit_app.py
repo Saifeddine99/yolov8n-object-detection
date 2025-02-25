@@ -1,7 +1,10 @@
 import io
 from ultralytics import YOLO
-from PIL import Image
 import streamlit as st
+import numpy as np
+from PIL import Image
+from pillow_heif import register_heif_opener
+
 
 st.set_page_config(page_title="Yolo V8 Multiple Object Detection", page_icon="🤖")
 
@@ -60,14 +63,33 @@ with st.sidebar:
     # Image Upload:
     uploaded_image = st.file_uploader(
         "Upload Image", 
-        type = ['png', 'jpeg', 'jpg', 'bmp', 'dng', 'mpo', 'tif', 'tiff', 'webp', 'pfm', 'HEIC'],
+        type = ['png', 'jpeg', 'jpg', 'bmp', 'dng', 'tif', 'tiff', 'webp', 'pfm', 'HEIC'],
         on_change=deactivation_callback)
 
     with st.spinner(text = 'Resource Loading...'):
         if uploaded_image is not None:
             st.info("Selected Image:")
-            st.image(uploaded_image)
-            picture = Image.open(uploaded_image)
+            try:
+                file_extension = uploaded_image.name.split(".")[-1].lower()
+
+                if file_extension in ['png', 'jpeg', 'jpg', 'bmp', 'dng', 'tif', 'tiff', 'webp']:
+                    picture = Image.open(uploaded_image).convert("RGB") # Ensure RGB for consistent display
+                    st.image(picture)
+
+                elif file_extension == 'heic':
+                    register_heif_opener()
+                    picture = Image.open(uploaded_image).convert("RGB") # Ensure RGB for consistent display
+                    st.image(picture)
+                
+                elif file_extension == 'pfm':
+                    from pfm_reader import read_pfm
+                    pfm_data = read_pfm(uploaded_image)
+                    # Convert to PIL image
+                    picture = Image.fromarray(pfm_data, mode="RGB")
+                    st.image(picture)
+                
+            except Exception as e:
+                st.error(f"An error occurred {file_extension}: {e}")
 
         else:
             st.info("Default Image:")
@@ -76,71 +98,74 @@ with st.sidebar:
 #################### /Sidebar #####################################################
 
 
-#################### Object Detection ########################################
-if st.button('Detect Objects', on_click=activation_callback) or st.session_state.detection_button:
+if picture:
+    #################### Object Detection ########################################
+    if st.button('Detect Objects', on_click=activation_callback) or st.session_state.detection_button:
 
-    isAllinList = 80 in classes_index
-    if isAllinList is True:
-        classes_index = classes_index.clear()
-    print("Selected Classes: ", classes_index)
+        isAllinList = 80 in classes_index
+        if isAllinList is True:
+            classes_index = classes_index.clear()
+        print("Selected Classes: ", classes_index)
 
-    with st.spinner(text = 'Inferencing, Please Wait.....'):
-        if classes_index:
-            results = st.session_state.model.predict(source = picture,
-                                    conf = MIN_SCORE_THRES,
-                                    classes = classes_index,
-                                    max_det = MAX_BOXES_TO_DRAW
-                                    )
-    
-        else:
-            results = st.session_state.model.predict(source = picture,
-                                    conf = MIN_SCORE_THRES,
-                                    max_det = MAX_BOXES_TO_DRAW
-                                    )
+        with st.spinner(text = 'Inferencing, Please Wait.....'):
+            if classes_index:
+                results = st.session_state.model.predict(source = picture,
+                                        conf = MIN_SCORE_THRES,
+                                        classes = classes_index,
+                                        max_det = MAX_BOXES_TO_DRAW
+                                        )
+        
+            else:
+                results = st.session_state.model.predict(source = picture,
+                                        conf = MIN_SCORE_THRES,
+                                        max_det = MAX_BOXES_TO_DRAW
+                                        )
 
-    # Extracting result:
-    result = results[0]
+        # Extracting result:
+        result = results[0]
 
-    with st.spinner(text = 'Image Processing:'):
+        with st.spinner(text = 'Image Processing:'):
 
-        # Converting result to DataFrame:
-        classes_dataframe = result.to_df()
+            # Converting result to DataFrame:
+            classes_dataframe = result.to_df()
 
-        if len(classes_dataframe):
+            if len(classes_dataframe):
 
-            annotated_image = result.plot() # BGR-order numpy array
-            # Convert NumPy array to a PIL image
-            image_to_display = Image.fromarray(annotated_image[..., ::-1]) # RGB-order PIL image
+                annotated_image_np = result.plot() # BGR-order numpy array
+                # Convert NumPy array to a PIL image
+                annotated_image = Image.fromarray(annotated_image_np[..., ::-1]) # RGB-order PIL image
 
-            st.markdown('#') # insert empty space
+                st.markdown('#') # insert empty space
 
-            #  Display the original image with bounding boxes drawn around detected objects
-            st.text("Here you have the original image with bounding boxes drawn around detected objects:")
-            st.image(image_to_display)
+                #  Display the original image with bounding boxes drawn around detected objects
+                st.text("Here you have the original image with bounding boxes drawn around detected objects:")
+                st.image(annotated_image)
 
-            st.markdown('#') # insert empty space
+                st.markdown('#') # insert empty space
 
-            # Show a list of all detected classes below the image
-            st.text("Here you have the list of all detected classes:")
-            if 'box' in classes_dataframe.columns:
-                classes_dataframe.drop('box', axis='columns', inplace=True)
-            st.dataframe(classes_dataframe)
+                # Show a list of all detected classes below the image
+                st.text("Here you have the list of all detected classes:")
+                if 'box' in classes_dataframe.columns:
+                    classes_dataframe.drop('box', axis='columns', inplace=True)
+                st.dataframe(classes_dataframe)
 
 
-            # Convert the PIL image to a BytesIO object
-            img_bytes = io.BytesIO()
-            image_to_display.save(img_bytes, format="PNG")  # Save in-memory as PNG
-            img_bytes.seek(0)  # Move to the start of the BytesIO buffer
+                # Convert the PIL image to a BytesIO object
+                img_bytes = io.BytesIO()
+                annotated_image.save(img_bytes, format="PNG")  # Save in-memory as PNG
+                img_bytes.seek(0)  # Move to the start of the BytesIO buffer
 
-            # Option to download the image with bounding boxes:
-            if st.download_button(
-                label="Download image",
-                data=img_bytes,
-                file_name="Annotated_image.jpg",
-                mime="image/jpg",
-            ):
-                st.balloons()
+                # Option to download the image with bounding boxes:
+                if st.download_button(
+                    label="Download image",
+                    data=img_bytes,
+                    file_name="Annotated_image.jpg",
+                    mime="image/jpg",
+                ):
+                    st.balloons()
 
-        else:
-            st.error("Sorry, No object detected!")
-#################### /Object Detection ########################################
+            else:
+                st.error("Sorry, No object detected!")
+    #################### /Object Detection ########################################
+else:
+    st.error("Can't read Image! Try again")
