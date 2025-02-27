@@ -4,7 +4,8 @@ from PIL import Image
 
 import utils
 
-st.set_page_config(page_title="Yolo V8 Multiple Object Detection", page_icon="🤖")
+from image_processing.image_processor import read_picture
+from prediction import load_model, predict
 
 # Constants
 COCO_CLASSES = [  # List of all Classes
@@ -20,86 +21,64 @@ COCO_CLASSES = [  # List of all Classes
     "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier",
     "toothbrush", "all"
 ]
+DEFAULT_CLASSES = 80 #index of "all"
+DEFAULT_MAX_BOXES = 5
+DEFAULT_MIN_SCORE = 0.25
 
-# Initialize session state for detection status
 if "detection_button" not in st.session_state:
     st.session_state.detection_button = False
 
-#################### Title #####################################################
-st.markdown("<h3 style='text-align: center; color: red;'>Yolo V8</h3>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center; color: black;'>Multiple Object Detection</h2>",
-            unsafe_allow_html=True)
-st.markdown('#')
-#################### /Title #####################################################
+def setup_page():
+    st.set_page_config(page_title="Yolo V8 Multiple Object Detection", page_icon="🤖")
 
+def display_title():
+    st.markdown("<h3 style='text-align: center; color: red;'>Yolo V8</h3>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: black;'>Multiple Object Detection</h2>", unsafe_allow_html=True)
+    st.markdown('#')
 
-#################### Sidebar #####################################################
-with st.sidebar:
-    #Parameters to setup:
-    classes_index = st.multiselect("Select Classes", range(
-        len(COCO_CLASSES)), format_func = lambda x: COCO_CLASSES[x], default = 80)
+def setup_sidebar():
+    with st.sidebar:
+        classes_index = st.multiselect("Select Classes", range(len(COCO_CLASSES)), format_func=lambda x: COCO_CLASSES[x], default=DEFAULT_CLASSES, on_change=utils.deactivation_callback)
+        max_boxes = st.number_input('Maximum Boxes To Draw', value=DEFAULT_MAX_BOXES, min_value=1, max_value=20, on_change=utils.deactivation_callback)
+        min_score = st.slider('Min Confidence Score Threshold', min_value=0.0, max_value=1.0, value=DEFAULT_MIN_SCORE, on_change=utils.deactivation_callback)
+        picture = read_picture()
+    return classes_index, max_boxes, min_score, picture
 
-    MAX_BOXES_TO_DRAW = st.number_input('Maximum Boxes To Draw', value = 5, min_value = 1, max_value = 20, on_change = utils.deactivation_callback) #max_det
-    MIN_SCORE_THRES = st.slider('Min Confidence Score Threshold', min_value = 0.0, max_value = 1.0, value = 0.25, on_change = utils.deactivation_callback)
+def display_results(result, annotated_image):
+    st.markdown('#')
+    st.text("Here you have the original image with bounding boxes drawn around detected objects:")
+    st.image(annotated_image)
+    st.markdown('#')
+    st.text("Here you have the list of all detected classes:")
+    classes_dataframe = result.to_df()
+    if 'box' in classes_dataframe.columns:
+        classes_dataframe.drop('box', axis='columns', inplace=True)
+    st.dataframe(classes_dataframe)
+    img_bytes = io.BytesIO()
+    annotated_image.save(img_bytes, format="PNG")
+    img_bytes.seek(0)
+    if st.download_button(label="Download image", data=img_bytes, file_name="Annotated_image.jpg", mime="image/jpg"):
+        st.balloons()
 
-    # Image Upload:
-    from image_processing.image_processor import read_picture
-    picture = read_picture()
-#################### /Sidebar #####################################################
+def main():
+    setup_page()
+    display_title()
+    classes_index, max_boxes, min_score, picture = setup_sidebar()
 
-if picture:
-    #################### Object Detection ########################################
-    if st.button('Detect Objects', on_click = utils.activation_callback) or st.session_state.detection_button:
+    if picture:
+        if st.button('Detect Objects', on_click = utils.activation_callback) or st.session_state.detection_button:
+            model = load_model()
+            result = predict(model, picture, classes_index, min_score, max_boxes)
 
-        from prediction import predict
-        import time
-
-        st.write("app.py, calling predict function:", time.time()) # Debuggeing
-        
-        result = predict(picture, classes_index, MIN_SCORE_THRES, MAX_BOXES_TO_DRAW)
-            
-        with st.spinner(text = 'Image Processing:'):
-
-            # Converting result to DataFrame:
-            classes_dataframe = result.to_df()
-
-            if len(classes_dataframe):
-
-                annotated_image_np = result.plot() # BGR-order numpy array
-                # Convert NumPy array to a PIL image
-                annotated_image = Image.fromarray(annotated_image_np[..., ::-1]) # RGB-order PIL image
-
-                st.markdown('#') # insert empty space
-
-                #  Display the original image with bounding boxes drawn around detected objects
-                st.text("Here you have the original image with bounding boxes drawn around detected objects:")
-                st.image(annotated_image)
-
-                st.markdown('#') # insert empty space
-
-                # Show a list of all detected classes below the image
-                st.text("Here you have the list of all detected classes:")
-                if 'box' in classes_dataframe.columns:
-                    classes_dataframe.drop('box', axis='columns', inplace=True)
-                st.dataframe(classes_dataframe)
-
-
-                # Convert the PIL image to a BytesIO object
-                img_bytes = io.BytesIO()
-                annotated_image.save(img_bytes, format="PNG")  # Save in-memory as PNG
-                img_bytes.seek(0)  # Move to the start of the BytesIO buffer
-
-                # Option to download the image with bounding boxes:
-                if st.download_button(
-                    label="Download image",
-                    data=img_bytes,
-                    file_name="Annotated_image.jpg",
-                    mime="image/jpg",
-                ):
-                    st.balloons()
+            if result:
+                annotated_image_np = result.plot()
+                annotated_image = Image.fromarray(annotated_image_np[..., ::-1])
+                display_results(result, annotated_image)
 
             else:
                 st.error("Sorry, No object detected!")
-    #################### /Object Detection ########################################
-else:
-    st.error("Can't read Image! Try again...")
+    else:
+        st.error("Can't read Image! Try again...")
+
+if __name__ == "__main__":
+    main()
