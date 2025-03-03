@@ -1,4 +1,5 @@
 import datetime
+import time
 import streamlit as st
 from ultralytics import YOLO
 
@@ -10,25 +11,17 @@ def load_model():
 
 @st.cache_data(max_entries=1000, show_spinner='Inferencing, Please Wait.....') # 👈 Maximum 1000 entries in the cache
 def predict(_model, picture, classes_index, MIN_SCORE_THRES, MAX_BOXES_TO_DRAW): # 👈 Don't hash _model
+    
+    inference_date = time.time()
+    
     try:
-        isAllinList = 80 in classes_index
-        if isAllinList is True:
-            classes_index.clear()
-        print("Selected Classes: ", classes_index)
+        results = _model.predict(source=picture,
+                                conf=MIN_SCORE_THRES,
+                                classes=classes_index,
+                                max_det=MAX_BOXES_TO_DRAW)
 
-        if classes_index:
-            results = _model.predict(source=picture,
-                                    conf=MIN_SCORE_THRES,
-                                    classes=classes_index,
-                                    max_det=MAX_BOXES_TO_DRAW)
-
-        else:
-            results = _model.predict(source=picture,
-                                    conf=MIN_SCORE_THRES,
-                                    max_det=MAX_BOXES_TO_DRAW)
-
-        return results[0]
+        return results[0], inference_date
 
     except Exception as e:
         st.error(f"Error during inference: {e}")
-        return None
+        return None, inference_date

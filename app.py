@@ -1,7 +1,7 @@
 import io
 import streamlit as st
 from PIL import Image
-
+import time
 import utils
 
 from image_processing.image_processor import read_picture
@@ -21,7 +21,7 @@ COCO_CLASSES = [  # List of all Classes
     "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier",
     "toothbrush", "all"
 ]
-DEFAULT_CLASSES = 80 #index of "all"
+DEFAULT_CLASSES = [80] #index of "all"
 DEFAULT_MAX_BOXES = 5
 DEFAULT_MIN_SCORE = 0.25
 
@@ -65,12 +65,23 @@ def main():
     display_title()
     classes_index, max_boxes, min_score, picture = setup_sidebar()
 
+    if 80 in classes_index or len(classes_index) == 0:
+        classes_index = None
+    print("Selected Classes: ", classes_index)
+
     if picture:
         if st.button('Detect Objects', on_click = utils.activation_callback) or st.session_state.detection_button:
             model = load_model()
-            result = predict(model, picture, classes_index, min_score, max_boxes)
+            
+            runtime = time.time()
+            result, inference_date = predict(model, picture, classes_index, min_score, max_boxes)
 
             if result:
+                if abs(inference_date - runtime) > 1:
+                    st.success("Data Loaded directly from Cache!")
+                else:
+                    st.info("Data loaded after model inference!")
+
                 annotated_image_np = result.plot()
                 annotated_image = Image.fromarray(annotated_image_np[..., ::-1])
                 display_results(result, annotated_image)
