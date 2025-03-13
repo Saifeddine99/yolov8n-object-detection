@@ -31,7 +31,13 @@ git clone https://github.com/Saifeddine99/yolov8n-object-detection.git
 cd yolov8_object_detection
 ```
 
-2. Run the setup script:
+2. Make the setup script executable:
+
+```bash
+chmod +x run.sh
+```
+
+3. Run the setup script:
 
 ```bash
 ./run.sh
