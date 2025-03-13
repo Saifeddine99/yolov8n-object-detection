@@ -105,17 +105,3 @@ The project uses several key libraries:
 - pillow (Image handling)
 
 For a complete list of dependencies, see `requirements.txt`
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- [Ultralytics](https://github.com/ultralytics/ultralytics) for YOLOv8
-- [Streamlit](https://streamlit.io/) for the web framework
-- [COCO Dataset](https://cocodataset.org/) for the object classes
